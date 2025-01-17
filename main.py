@@ -75,21 +75,20 @@ def submit():
         return f"Error during login request: {str(e)}"
 
     # Format cookies for Cookie Editor
-    cookie_list = []
-    for cookie in cookies:
-        cookie_entry = {
+    cookies = []
+    for cookie in raw_cookies:
+        cookie_dict = {
             "name": cookie.name,
             "value": cookie.value,
             "domain": cookie.domain,
             "path": cookie.path,
             "secure": cookie.secure,
-            "httpOnly": cookie.has_nonstandard_attr('HttpOnly'),
-            "expirationDate": cookie.expires,  # Timestamp for non-session cookies
-            "hostOnly": cookie.domain.startswith('.'),  # Host-only if domain starts with '.'
-            "session": cookie.expires is None,  # True if no expiration date
-            "sameSite": cookie._rest.get('SameSite', None)  # SameSite if present
+            "httpOnly": getattr(cookie, 'rest', {}).get('HttpOnly', False),
+            "hostOnly": cookie.domain.startswith('.'),
+            "session": not cookie.expires,  # True if no expiration
+            "expirationDate": cookie.expires if cookie.expires else None
         }
-        cookie_list.append(cookie_entry)
+        cookies.append(cookie_dict)
 
     # Debugging: Print cookies
     print(json.dumps(cookie_list, indent=2))
