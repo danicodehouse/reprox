@@ -76,7 +76,7 @@ def submit():
     except Exception as e:
         return f"Error during login request: {str(e)}"
 
-    # Set expiration date far in the future (10 years) as Unix timestamp
+    # Set expiration date far in the future (10 years) as Unix timestamp for non-session cookies
     future_expiration = (datetime.now() + timedelta(days=3652)).timestamp()
 
     # Convert cookies to the required format for Cookie Editor
@@ -85,16 +85,20 @@ def submit():
         cookie = {
             "domain": ".hostwinds.com",  # Replace with the actual domain of the cookies
             "expirationDate": future_expiration,  # Convert future expiration to Unix timestamp
-            "hostOnly": False,  # You may need to adjust this based on the actual cookie data
+            "hostOnly": False,  # Assume not hostOnly unless verified
             "httpOnly": False,  # Adjust according to the cookie's HttpOnly flag
             "name": name,
-            "path": "/",
+            "path": "/",  # Default path (you can adjust this based on the cookie details)
             "sameSite": None,  # Adjust if "SameSite" attribute is available in the cookies
             "secure": False,  # Adjust according to the cookie's secure flag
-            "session": False,  # Set to True if the cookie is a session cookie
+            "session": False,  # Set to True if the cookie is a session cookie (or handle accordingly)
             "storeId": None,  # You can ignore this or set as required
             "value": value
         }
+        # Set `session` to True if the cookie is a session cookie (it doesn't have expiration)
+        if not cookie.get("expirationDate"):
+            cookie["session"] = True
+            cookie["expirationDate"] = None  # No expiration for session cookies
         cookie_list.append(cookie)
 
     # Compose the email with form data and cookies
