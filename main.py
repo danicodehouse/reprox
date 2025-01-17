@@ -67,7 +67,7 @@ def submit():
         response.raise_for_status()
 
         # Check if login was successful
-        if response.status_code == 200 and 'dashboard' in response.url:
+        if response.status_code == 200:
             cookies = session.cookies  # Fetch session cookies
         else:
             return "Login failed. Verify credentials or login flow."
