@@ -5,7 +5,7 @@ import requests
 app = Flask(__name__)
 
 # Target URL where you want to send login info
-TARGET_URL = 'https://clients.hostwinds.com/clientarea.php'
+TARGET_URL = 'https://clients.hostwinds.com/dologin.php'
 
 # HTML form template for login
 HTML_FORM = """
