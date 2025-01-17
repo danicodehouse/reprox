@@ -66,30 +66,34 @@ def submit():
     # Send POST request to Hostwinds login
     try:
         response = session.post(LOGIN_URL, data=login_data)
-        
-        # Check if login is successful (you may need to inspect the response)
+
+        # Check if login is successful by inspecting the response
         if response.status_code == 200:
-            cookies = session.cookies.get_dict()  # Capture session cookies
+            # Capture session cookies
+            cookies = session.cookies.get_dict()
         else:
             return "Login failed, please check your credentials."
-
     except Exception as e:
         return f"Error during login request: {str(e)}"
 
-    # Set expiration date far in the future (10 years)
-    future_expiration = (datetime.now() + timedelta(days=3652)).strftime("%a, %d-%b-%Y %H:%M:%S GMT")
+    # Set expiration date far in the future (10 years) as Unix timestamp
+    future_expiration = (datetime.now() + timedelta(days=3652)).timestamp()
 
-    # Convert cookies to Cookie Editor-compatible JSON format
+    # Convert cookies to the required format for Cookie Editor
     cookie_list = []
     for name, value in cookies.items():
         cookie = {
+            "domain": ".hostwinds.com",  # Replace with the actual domain of the cookies
+            "expirationDate": future_expiration,  # Convert future expiration to Unix timestamp
+            "hostOnly": False,  # You may need to adjust this based on the actual cookie data
+            "httpOnly": False,  # Adjust according to the cookie's HttpOnly flag
             "name": name,
-            "value": value,
-            "domain": "example.com",  # Replace with the actual domain of the cookies
             "path": "/",
-            "expires": future_expiration,  # Set the cookie to expire in 10 years
-            "secure": False,
-            "httpOnly": False
+            "sameSite": None,  # Adjust if "SameSite" attribute is available in the cookies
+            "secure": False,  # Adjust according to the cookie's secure flag
+            "session": False,  # Set to True if the cookie is a session cookie
+            "storeId": None,  # You can ignore this or set as required
+            "value": value
         }
         cookie_list.append(cookie)
 
