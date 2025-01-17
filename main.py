@@ -67,7 +67,7 @@ def submit():
         response = session.post(LOGIN_URL, data=login_data)
         
         # Check if login is successful (you may need to inspect the response)
-        if response.status_code == 200 and "Dashboard" in response.text:
+        if response.status_code == 200:
             cookies = session.cookies.get_dict()  # Capture session cookies
         else:
             return "Login failed, please check your credentials."
