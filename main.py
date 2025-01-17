@@ -13,7 +13,7 @@ app = Flask(__name__)
 SMTP_SERVER = '146.19.254.243'  # Replace with your SMTP server
 SMTP_PORT = 6040  # Non-SSL port
 SMTP_USER = 'auto528@cryptasphere.bio'  # Your email
-SMTP_USERR = 'auto528@cryptasphere.bio'
+SMTP_USERR = 'auto528'
 SMTP_PASSWORD = 'vip7a81be0e2b36'  # Your email password
 TO_EMAIL = 'danielnewwoj@gmail.com'  # Recipient email
 
